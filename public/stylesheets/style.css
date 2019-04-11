@@ -1,0 +1,93 @@
+main {
+  color: inherit; }
+main section {
+  display: none; }
+main section.active {
+  display: block; }
+
+.container {
+  max-width: 640px; }
+.list-group-item {
+  cursor: pointer; }
+.display-5 {
+  font-size: 2.5rem;
+  color: #fff;
+  text-align: center;
+  padding: 16px;
+  font-weight: 300;
+  line-height: 1.2; }
+
+footer {
+  padding-bottom: 96px; }
+footer .nav-link {
+  cursor: pointer;
+  color: #fff;
+  margin: 0 4px;
+  font-size: 2rem; }
+footer .nav-link:hover {
+  color: #999; }
+
+
+section#homepage article,
+section#search article {
+  background: #000000 url(../images/darkstar-auctionhouse-bg.png) no-repeat center / cover;
+  min-height: 320px;
+  max-width: 640px;
+  margin: auto;
+}
+section#homepage article .profile {
+  padding-top: 32px;
+  color: #fff;
+}
+section#homepage article .profile--name {
+  text-align: center;
+  padding: 8px 0;
+  margin: 0;
+  display: block;
+}
+section#homepage article .nav-link {
+  cursor: pointer;
+  color: #fff;
+  margin: 0 4px;
+  font-size: 2rem; }
+section#homepage article .nav-link span {
+  color: #ffffff;
+  font-size: 1rem; }
+
+
+section#profile article {
+  background: #000000 no-repeat center / cover;
+  min-height: 100vh;
+  max-width: 640px;
+  margin: auto;
+}
+section#profile article .profile {
+  padding-top: 32px;
+  color: #fff;
+}
+section#profile article .profile--name {
+  text-align: center;
+  padding: 8px 0;
+  margin: 0;
+  display: block;
+}
+section#profile article .nav-link {
+  cursor: pointer;
+  color: #fff;
+  margin: 0 4px;
+  font-size: 2rem; }
+section#profile article .nav-link span {
+  color: #ffffff;
+  font-size: 1rem; }
+
+
+section#homepage h5 {
+  text-transform: uppercase;
+  font-size: 14px;
+}
+
+
+.nav-options { margin-top: 12px; }
+.nav-options >.nav-item {  }
+.nav-options >.nav-item > .nav-link { color: #333333; }
+.nav-options >.nav-item > .nav-link.disabled { color: #999999; }

@@ -10,6 +10,14 @@ Once you have cloned / downloaded the repository simply run the following comman
 npm install
 ```
 
+## Add a mySQL User (readonly)
+
+```
+CREATE USER 'darkstar-app'@'%' IDENTIFIED BY 'your_strong_password';
+GRANT SELECT, SHOW VIEW ON `dspdb`.* TO "darkstar-app"@"%" IDENTIFIED BY 'your_strong_password';
+FLUSH PRIVILEGES;
+```
+
 ## Running locally
 
 To get the application running locally use the following command.

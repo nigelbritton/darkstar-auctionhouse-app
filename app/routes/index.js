@@ -3,7 +3,7 @@ var router = express.Router();
 var debug = require('debug')('darkstar-auctionhouse-app:routing');
 var loadContent = require('../lib/loadContent')();
 
-var version = require('../package.json').version;
+var version = require('../../package.json').version;
 var structureCategories = require('../public/json/structure.json');
 var structureItems = require('../public/json/structure-items.json');
 

@@ -10,7 +10,9 @@ var fs = require('fs'),
     debug = require('debug')('darkstar-auctionhouse-app:loadContent'),
     promise = require('promise');
 
-module.exports = function ( contentConfig ) {
+const dataContent = require('./dataContent');
+
+module.exports = function (contentConfig) {
 
     var contentService = {
 
@@ -68,28 +70,28 @@ module.exports = function ( contentConfig ) {
      * @param charid number
      * @param charname string
      */
-    contentService.updatePopularCharacter = function ( charid, charname ) {
+    contentService.updatePopularCharacter = function (charid, charname) {
         if (!this.popularContentCharacters[charid]) { this.popularContentCharacters[charid] = { counter: 0, charname: charname }; }
         this.popularContentCharacters[charid].counter++;
         this.popularContentCharacters[charid].updated = new Date().getTime();
     };
 
-    contentService.updateCachedCharacters = function ( responseObjectItemList ) {
+    contentService.updateCachedCharacters = function (responseObjectItemList) {
         if (responseObjectItemList.length === 0) { return false; }
-        responseObjectItemList.forEach(function ( objectItem, index ) {
+        responseObjectItemList.forEach(function (objectItem, index) {
             contentService.cachedCharacters[objectItem.name] = {
                 id: objectItem.id,
                 updated: new Date().getTime()
             }
         });
-        contentService.setCache( 'cachedCharacters', contentService.cachedCharacters );
+        contentService.setCache('cachedCharacters', contentService.cachedCharacters);
     };
 
     /**
      * popularContentItems
      * @param itemid number
      */
-    contentService.updatePopularItem = function ( itemid, itemname ) {
+    contentService.updatePopularItem = function (itemid, itemname) {
         if (!this.popularContentItems[itemid]) { this.popularContentItems[itemid] = { counter: 0, itemname: itemname }; }
         this.popularContentItems[itemid].counter++;
         this.popularContentItems[itemid].updated = new Date().getTime();
@@ -99,7 +101,7 @@ module.exports = function ( contentConfig ) {
      *
      * @returns {popularContentCharacters}
      */
-    contentService.getPopularCharacters = function (  ) {
+    contentService.getPopularCharacters = function () {
         return this.popularContentCharacters;
     };
 
@@ -107,7 +109,7 @@ module.exports = function ( contentConfig ) {
      *
      * @returns {popularContentItems}
      */
-    contentService.getPopularItems = function (  ) {
+    contentService.getPopularItems = function () {
         return this.popularContentItems;
     };
 
@@ -115,19 +117,21 @@ module.exports = function ( contentConfig ) {
      * searchCharByName
      * @param charname string
      */
-    contentService.searchCharByName = function ( charname ) {
+    contentService.searchCharByName = function (charname) {
 
-        var options = { method: this.contentEndpoints.searchCharByName.method,
+        var options = {
+            method: this.contentEndpoints.searchCharByName.method,
             url: this.contentEndpoints.searchCharByName.url,
             time: true,
             timeout: contentService.requestTimeout,
             headers:
                 { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { charname: charname } };
+            form: { charname: charname }
+        };
 
         return new promise(function (resolve, reject) {
-            var cacheId = md5('searchCharByName'+charname);
-            var cachedObject = contentService.getCache( cacheId );
+            var cacheId = md5('searchCharByName' + charname);
+            var cachedObject = contentService.getCache(cacheId);
             if (cachedObject === false) {
                 contentService.setCache(cacheId, [], 3600);
                 resolve(postDataReturned);
@@ -142,26 +146,39 @@ module.exports = function ( contentConfig ) {
      * searchChar
      * @param charid number
      */
-    contentService.searchChar = function ( charid ) {
+    contentService.searchChar = function (charid) {
 
-        var options = { method: this.contentEndpoints.searchChar.method,
+        var options = {
+            method: this.contentEndpoints.searchChar.method,
             url: this.contentEndpoints.searchChar.url,
             time: true,
             timeout: contentService.requestTimeout,
             headers:
                 { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { charid: charid } };
+            form: { charid: charid }
+        };
 
         return new promise(function (resolve, reject) {
-            var cacheId = md5('searchChar'+charid);
-            var cachedObject = contentService.getCache( cacheId );
+            var cacheId = md5('searchChar' + charid);
+            var cachedObject = contentService.getCache(cacheId);
+            var postDataReturned = {
+                sale_list: []
+            };
             if (cachedObject === false) {
-                debug(options);
-                contentService.setCache(cacheId, [], 3600);
-                resolve(postDataReturned);
+                dataContent.query('select ah.*, ib.name as item_name, ib.aH from auction_house ah join item_basic ib on ah.itemid = ib.itemid where ah.sell_date <> 0 and ah.seller = ' + parseInt(charid) + ' limit 50;')
+                    .then(function (result) {
+                        postDataReturned = {
+                            sale_list: result
+                        };
+                        contentService.setCache(cacheId, postDataReturned, 3600);
+                        resolve(postDataReturned);
+                    })
+                    .catch(function (err) {
+                        resolve(postDataReturned);
+                    });
             } else {
                 var postDataReturned = cachedObject;
-                if (postDataReturned && postDataReturned.length > 0) { contentService.updatePopularCharacter( charid, postDataReturned[0].name ); }
+                if (postDataReturned && postDataReturned.length > 0) { contentService.updatePopularCharacter(charid, postDataReturned[0].name); }
                 resolve(cachedObject);
             }
         });
@@ -172,19 +189,21 @@ module.exports = function ( contentConfig ) {
      *
      * @param itemname string
      */
-    contentService.searchItemByName = function ( itemname ) {
+    contentService.searchItemByName = function (itemname) {
 
-        var options = { method: this.contentEndpoints.searchItemByName.method,
+        var options = {
+            method: this.contentEndpoints.searchItemByName.method,
             url: this.contentEndpoints.searchItemByName.url,
             time: true,
             timeout: contentService.requestTimeout,
             headers:
                 { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { itemname: itemname } };
+            form: { itemname: itemname }
+        };
 
         return new promise(function (resolve, reject) {
-            var cacheId = md5('searchItemByName'+itemname);
-            var cachedObject = contentService.getCache( cacheId );
+            var cacheId = md5('searchItemByName' + itemname);
+            var cachedObject = contentService.getCache(cacheId);
             if (cachedObject === false) {
                 contentService.setCache(cacheId, [], 3600);
                 resolve(postDataReturned);
@@ -199,24 +218,41 @@ module.exports = function ( contentConfig ) {
      *
      * @param itemid number
      */
-    contentService.searchItem = function ( itemid, stack ) {
+    contentService.searchItem = function (itemid, stack) {
 
-        var options = { method: this.contentEndpoints.searchItem.method,
+        var options = {
+            method: this.contentEndpoints.searchItem.method,
             url: this.contentEndpoints.searchItem.url,
             time: true,
             timeout: contentService.requestTimeout,
             headers:
                 { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { itemid: itemid, stack: stack } };
+            form: { itemid: itemid, stack: stack }
+        };
 
         return new promise(function (resolve, reject) {
-            var cacheId = md5('searchItem'+itemid+stack);
-            var cachedObject = contentService.getCache( cacheId );
+            var cacheId = md5('searchItem' + itemid + stack);
+            var cachedObject = contentService.getCache(cacheId);
+            var postDataReturned = {
+                sale_list: []
+            };
+
             if (cachedObject === false) {
-                contentService.setCache(cacheId, [], 3600);
-                resolve(postDataReturned);
+
+                dataContent.query('select ah.*, ib.name as item_name, ib.aH from auction_house ah join item_basic ib on ah.itemid = ib.itemid where ah.sell_date <> 0 and ah.itemid = ' + parseInt(itemid) + ' limit 50;')
+                    .then(function (result) {
+                        postDataReturned = {
+                            sale_list: result
+                        };
+                        contentService.setCache(cacheId, postDataReturned, 3600);
+                        resolve(postDataReturned);
+                    })
+                    .catch(function (err) {
+                        resolve(postDataReturned);
+                    });
+
             } else {
-                contentService.updatePopularItem( itemid, cachedObject.sale_list[0].item_name );
+                // contentService.updatePopularItem(itemid, cachedObject.sale_list[0].item_name);
                 resolve(cachedObject);
             }
         });
@@ -228,7 +264,7 @@ module.exports = function ( contentConfig ) {
      * @param cacheId
      * @returns {(boolean|object)}
      */
-    contentService.getCache = function ( cacheId ) {
+    contentService.getCache = function (cacheId) {
         var cachedObject = this.cachedContent[cacheId];
         if (!cachedObject) {
             cachedObject = { data: false };
@@ -248,7 +284,7 @@ module.exports = function ( contentConfig ) {
      * @param ttl number
      * @returns {boolean}
      */
-    contentService.setCache = function ( cacheId, blob, ttl ) {
+    contentService.setCache = function (cacheId, blob, ttl) {
         this.cacheQueue.push(cacheId);
         this.cachedContent[cacheId] = {
             expires: new Date().getTime() + ((ttl ? ttl : 300) * 1000),
@@ -262,7 +298,7 @@ module.exports = function ( contentConfig ) {
             cacheObject = {};
 
         if (cacheId) {
-            cacheObject = contentService.getCache( cacheId );
+            cacheObject = contentService.getCache(cacheId);
             if (cacheObject) {
                 fs.writeFile(__dirname + '/dat/' + cacheId + '.dat', JSON.stringify(cacheObject), 'utf8', function (err) {
                     if (err) {

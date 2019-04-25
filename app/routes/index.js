@@ -160,9 +160,9 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
             name: ''
         };
 
-    var auctionItemSold = '<div class="list-group-item list-group-item-action flex-column align-items-start"><div class="d-flex w-100 justify-content-between"><h5 class="mb-1"><img class="float-left mr-1" src="{{item_icon_url}}" />{{item_name}}{{item_multiplier}}</h5><small>{{sell_date}}</small></div><div class="d-flex w-100 justify-content-between"><div><small class="d-block" data-user-name="{{name}}">Seller: {{name}}</small><small class="d-block" data-user-name="{{buyer}}">Buyer: {{buyer}}</small></div><div><small class="d-block">Price: {{price}} Gil</small><small class="d-block">Stack: {{stack_label}}</small></div></div>{{item_meta}}</div>';
+    var auctionItemSold = '<div class="list-group-item list-group-item-action flex-column align-items-start"><div class="d-flex w-100 justify-content-between"><h5 class="mb-1"><img class="float-left mr-1" src="{{item_icon_url}}" />{{item_name}}{{item_multiplier}}</h5><small>{{sell_date}}</small></div><div class="d-flex w-100 justify-content-between"><div><small class="d-block" data-user-name="{{seller_name}}">Seller: {{seller_name}}</small><small class="d-block" data-user-name="{{buyer_name}}">Buyer: {{buyer_name}}</small></div><div><small class="d-block">Price: {{price}} Gil</small><small class="d-block">Stack: {{stack_label}}</small></div></div>{{item_meta}}</div>';
 
-    var auctionItemMeta = '<ul class="nav nav-options justify-content-center"><li class="nav-item"><a class="nav-link fas fa-user" data-user-name="{{name}}" data-href="/browse/user/{{id}}"></a></li><li class="nav-item"><a class="nav-link fas fa-heart" data-fav-item-id="{{itemid}}" data-fav-item-name="{{item_name}}" data-fav-item-stack="{{stack}}"></a></li><li class="nav-item"><a class="nav-link fas fa-search" data-href="/browse/item/{{itemid}}"></a></li><li class="nav-item"><a class="nav-link fas fa-search-plus disabled" data-href="/browse/item/{{itemid}}/1"></a></li></ul>';
+    var auctionItemMeta = '<ul class="nav nav-options justify-content-center"><li class="nav-item"><a class="nav-link fas fa-user" data-user-name="{{seller_name}}" data-href="/browse/user/{{seller}}"></a></li><li class="nav-item"><a class="nav-link fas fa-heart" data-fav-item-id="{{itemid}}" data-fav-item-name="{{item_name}}" data-fav-item-stack="{{stack}}"></a></li><li class="nav-item"><a class="nav-link fas fa-search" data-href="/browse/item/{{itemid}}"></a></li><li class="nav-item"><a class="nav-link fas fa-search-plus disabled" data-href="/browse/item/{{itemid}}/1"></a></li></ul>';
 
     structureItem = getItemById(structureItems, structureItemSearch.itemid);
 
@@ -203,15 +203,15 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_meta}}', 'g'), auctionItemMeta);
 
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_icon_url}}', 'g'), '/icons/' + auctionItem.itemid +'.png');
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{id}}', 'g'), auctionItem.id);
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{itemid}}', 'g'), auctionItem.itemid);
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_name}}', 'g'), auctionItem.item_name);
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_multiplier}}', 'g'), (auctionItem.stack === '1' ? ' x' + auctionItem.stackSize : ''));
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{sell_date}}', 'g'), auctionItem.sell_date);
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{name}}', 'g'), auctionItem.name);
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{buyer}}', 'g'), auctionItem.buyer);
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{price}}', 'g'), auctionItem.price);
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{stack_label}}', 'g'), (auctionItem.stack === '0' ? 'No' : 'Yes'));
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{sell_date}}', 'g'), new Date(auctionItem.sell_date * 1000).toISOString());
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{seller}}', 'g'), auctionItem.seller);
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{seller_name}}', 'g'), auctionItem.seller_name);
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{buyer_name}}', 'g'), auctionItem.buyer_name);
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{price}}', 'g'), auctionItem.sale);
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{stack_label}}', 'g'), (auctionItem.stack === 0 ? 'No' : 'Yes'));
 
                         if (auctionItem.stackSize === '12' ||
                             auctionItem.stackSize === '99') {
@@ -242,13 +242,57 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
 router.get('/browse/user/:userId', function(req, res, next) {
     var structureCategoriesHTML = '',
         categoryGroupHTML = '';
+    var auctionStockFrequency = 'Slow';
     var structureUser = {
         id: parseInt(req.params.userId),
         title: ''
     };
 
+    var auctionItemSold = '<div class="list-group-item list-group-item-action flex-column align-items-start"><div class="d-flex w-100 justify-content-between"><h5 class="mb-1"><img class="float-left mr-1" src="{{item_icon_url}}" />{{item_name}}{{item_multiplier}}</h5><small>{{sell_date}}</small></div><div class="d-flex w-100 justify-content-between"><div><small class="d-block" data-user-name="{{seller_name}}">Seller: {{seller_name}}</small><small class="d-block" data-user-name="{{buyer_name}}">Buyer: {{buyer_name}}</small></div><div><small class="d-block">Price: {{price}} Gil</small><small class="d-block">Stack: {{stack_label}}</small></div></div>{{item_meta}}</div>';
+
+    var auctionItemMeta = '<ul class="nav nav-options justify-content-center"><li class="nav-item"><a class="nav-link fas fa-user" data-user-name="{{seller_name}}" data-href="/browse/user/{{seller}}"></a></li><li class="nav-item"><a class="nav-link fas fa-heart" data-fav-item-id="{{itemid}}" data-fav-item-name="{{item_name}}" data-fav-item-stack="{{stack}}"></a></li><li class="nav-item"><a class="nav-link fas fa-search" data-href="/browse/item/{{itemid}}"></a></li><li class="nav-item"><a class="nav-link fas fa-search-plus disabled" data-href="/browse/item/{{itemid}}/1"></a></li></ul>';
+
     loadContent.searchChar(structureUser.id)
         .then(function (response) {
+
+            if (response['sales'] && response['sales']['sold15days']) {
+                if (Math.floor(response['sales']['sold15days']) > 500 &&
+                    Math.floor(response['sales']['sold15days']) <= 1000) {
+                    auctionStockFrequency = 'Normal';
+                } else if (Math.floor(response['sales']['sold15days']) > 1000) {
+                    auctionStockFrequency = 'Fast';
+                }
+            }
+            structureCategoriesHTML = structureCategoriesHTML.replace('{{sale_speed}}', auctionStockFrequency);
+
+            categoryGroupHTML = '';
+
+            if (response.hasOwnProperty('sale_list')) {
+                response.sale_list.forEach(function (auctionItem) {
+                    categoryGroupHTML += auctionItemSold;
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_meta}}', 'g'), auctionItemMeta);
+
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_icon_url}}', 'g'), '/icons/' + auctionItem.itemid +'.png');
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{itemid}}', 'g'), auctionItem.itemid);
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_name}}', 'g'), auctionItem.item_name);
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_multiplier}}', 'g'), (auctionItem.stack === '1' ? ' x' + auctionItem.stackSize : ''));
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{sell_date}}', 'g'), new Date(auctionItem.sell_date * 1000).toISOString());
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{seller}}', 'g'), auctionItem.seller);
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{seller_name}}', 'g'), auctionItem.seller_name);
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{buyer_name}}', 'g'), auctionItem.buyer_name);
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{price}}', 'g'), auctionItem.sale);
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{stack_label}}', 'g'), (auctionItem.stack === 0 ? 'No' : 'Yes'));
+
+                    if (auctionItem.stackSize === '12' ||
+                        auctionItem.stackSize === '99') {
+                        categoryGroupHTML = categoryGroupHTML.replace('fa-search-plus disabled', 'fa-search-plus');
+                    }
+
+                });
+                structureCategoriesHTML += categoryGroupHTML;
+            }
+
+            res.render('browse', { title: 'Browse', version: version, structureCategoriesHTML: structureCategoriesHTML });
 
             debug(response);
 
@@ -257,7 +301,6 @@ router.get('/browse/user/:userId', function(req, res, next) {
             res.render('browse', { title: 'Browse', version: version, structureCategoriesHTML: '' });
         });
 
-    res.render('browse', { title: 'Browse', version: version, structureCategoriesHTML: structureCategoriesHTML });
 });
 
 router.get('/search/', function(req, res, next) {

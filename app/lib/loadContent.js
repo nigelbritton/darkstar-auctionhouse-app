@@ -76,6 +76,11 @@ module.exports = function (contentConfig) {
         this.popularContentCharacters[charid].updated = new Date().getTime();
     };
 
+    /**
+     *
+     *
+     *
+     */
     contentService.updateCachedCharacters = function (responseObjectItemList) {
         if (responseObjectItemList.length === 0) { return false; }
         responseObjectItemList.forEach(function (objectItem, index) {
@@ -112,6 +117,24 @@ module.exports = function (contentConfig) {
     contentService.getPopularItems = function () {
         return this.popularContentItems;
     };
+
+    /**
+     *
+     *
+     */
+    contentService.getAuctionItems = function () {
+        return new promise(function (resolve, reject){
+
+            dataContent.query('select ib.*, ia.level, ia.ilevel, ia.jobs, ia.slot from item_basic ib left join item_armor ia on ib.itemid = ia.itemid where ib.aH <> 0 and NoSale = 0 order by aH;')
+                .then(function (results) {
+                    resolve(dataContent.parseDataRows(results));
+                })
+                .catch(function(err){
+                    reject(err);
+                })
+
+        });
+    }
 
     /**
      * searchCharByName
@@ -233,21 +256,55 @@ module.exports = function (contentConfig) {
         return new promise(function (resolve, reject) {
             var cacheId = md5('searchItem' + itemid + stack);
             var cachedObject = contentService.getCache(cacheId);
+            var cachedItemData;
             var postDataReturned = {
                 sale_list: []
             };
 
             if (cachedObject === false) {
 
-                dataContent.query('select ah.*, ib.name as item_name, ib.aH from auction_house ah join item_basic ib on ah.itemid = ib.itemid where ah.sell_date <> 0 and ah.itemid = ' + parseInt(itemid) + ' limit 50;')
+                dataContent.query('select ib.*, ia.level, ia.ilevel, ia.jobs, ia.slot from item_basic ib left join item_armor ia on ib.itemid = ia.itemid where ib.itemid = ' + parseInt(itemid) + ';')
                     .then(function (result) {
-                        postDataReturned = {
-                            sale_list: result
+                        postDataReturned['item_data'] = {
+                            itemid: result[0].itemid,
+                            subid: result[0].subid,
+                            name: result[0].name,
+                            sortname: result[0].sortname,
+                            stackSize: result[0].stackSize,
+                            flags: result[0].flags,
+                            aH: result[0].aH,
+                            NoSale: result[0].NoSale,
+                            BaseSell: result[0].BaseSell,
+                            level: result[0].level,
+                            ilevel: result[0].ilevel,
+                            jobs: result[0].jobs,
+                            slot: result[0].slot,
                         };
+                        return true;
+                    })
+                    .then(function () {
+                        return dataContent.query('select count(id) as items_on_sale from auction_house where sell_date = 0 and itemid = ' + parseInt(itemid) + ';');
+                    })
+                    .then(function (result) {
+                        postDataReturned['items_on_sale'] = result[0].items_on_sale;
+                        return dataContent.query('select ah.*, ib.name as item_name, ib.aH from auction_house ah join item_basic ib on ah.itemid = ib.itemid where ah.sell_date <> 0 and ah.itemid = ' + parseInt(itemid) + ' limit 50;');
+                    })
+                    .then(function (result) {
+                        // postDataReturned['sale_list'] = result;
+                        // debug(result.length);
+                        for (var i = 0; i < result.length; i++) {
+                            // debug(result[i]);
+                            var saleItem = {};
+                            Object.keys(result[i]).forEach(function (key) {
+                                saleItem[key] = result[i][key];
+                            });
+                            postDataReturned['sale_list'].push(saleItem);
+                        }
                         contentService.setCache(cacheId, postDataReturned, 3600);
                         resolve(postDataReturned);
                     })
                     .catch(function (err) {
+                        debug(err);
                         resolve(postDataReturned);
                     });
 

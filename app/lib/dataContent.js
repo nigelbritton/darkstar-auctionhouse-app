@@ -9,11 +9,11 @@
 const mySQL = require('mysql');
 const promise = require('promise');
 const connectionDetails = {
-    connectionLimit : process.env.DATABASE_CONNECTION_LIMIT || 1,
-    host     : process.env.DATABASE_HOST || '',
-    user     : process.env.DATABASE_USER || '',
-    password : process.env.DATABASE_PASSWORD || '',
-    database : process.env.DATABASE_NAME || ''
+    connectionLimit: process.env.DATABASE_CONNECTION_LIMIT || 1,
+    host: process.env.DATABASE_HOST || '',
+    user: process.env.DATABASE_USER || '',
+    password: process.env.DATABASE_PASSWORD || '',
+    database: process.env.DATABASE_NAME || ''
 };
 let connectionPool = null;
 
@@ -22,11 +22,11 @@ if (connectionDetails.host !== '' &&
     connectionDetails.password !== '' &&
     connectionDetails.database !== '') {
     connectionPool = mySQL.createPool({
-        connectionLimit : connectionDetails.connectionLimit,
-        host     : connectionDetails.host,
-        user     : connectionDetails.user,
-        password : connectionDetails.password,
-        database : connectionDetails.database
+        connectionLimit: connectionDetails.connectionLimit,
+        host: connectionDetails.host,
+        user: connectionDetails.user,
+        password: connectionDetails.password,
+        database: connectionDetails.database
     });
 }
 
@@ -43,15 +43,15 @@ let Database = {
      *
      * @param {string} query
      */
-    query: function ( query ) {
+    query: function (query) {
         return new promise(function (success, reject) {
             if (!connectionPool) {
                 reject(new Error('No database settings / connection.'));
             } else {
-                connectionPool.getConnection(function(err, connection) {
+                connectionPool.getConnection(function (err, connection) {
                     if (err) { reject(err); }
                     else {
-                        connection.query(query, function(err, rows) {
+                        connection.query(query, function (err, rows) {
                             connection.release();
                             if (err) { reject(err); }
                             else {
@@ -73,20 +73,20 @@ let Database = {
      * @param {string} table
      * @param {object} fields
      */
-    insert: function ( table, fields ) {
+    insert: function (table, fields) {
         return new promise(function (success, reject) {
             if (!connectionPool) {
                 reject(new Error('No database settings / connection.'));
             } else {
-                connectionPool.getConnection(function(err, connection) {
+                connectionPool.getConnection(function (err, connection) {
                     if (err) { reject(err); }
                     else {
 
                         let field_names = Object.keys(fields).map(x => `\`${x}\``).join();
-                        let field_values = Object.values(fields).map(x => typeof(x) == 'string' ? "'"+x.replace("'", "\\'") + "'" : x).join();
+                        let field_values = Object.values(fields).map(x => typeof (x) == 'string' ? "'" + x.replace("'", "\\'") + "'" : x).join();
                         let query = `INSERT INTO ${table} (${field_names}) VALUES(${field_values});`;
 
-                        connection.query(query, function(err, rows) {
+                        connection.query(query, function (err, rows) {
                             connection.release();
                             if (err) { reject(err); }
                             else {
@@ -97,11 +97,34 @@ let Database = {
                 });
             }
         });
+    },
+
+    /**
+     *
+     *
+     */
+    parseDataRows: function (dataRows) {
+        let returnedRows = [];
+
+        if (Array.isArray(dataRows)) {
+            dataRows.forEach(function (dataRow) {
+                let dataFields = {};
+                Object.keys(dataRow).forEach(function (key) {
+                    dataFields[key] = dataRow[key];
+                });
+                returnedRows.push(dataFields);
+            });
+        }
+
+        return returnedRows;
     }
+
+
 
 };
 
 var exports = module.exports = {
     query: Database.query,
-    insert: Database.insert
+    insert: Database.insert,
+    parseDataRows: Database.parseDataRows
 };

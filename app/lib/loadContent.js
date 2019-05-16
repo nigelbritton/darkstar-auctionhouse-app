@@ -12,178 +12,149 @@ var fs = require('fs'),
 
 const dataContent = require('./dataContent');
 
-module.exports = function (contentConfig) {
+var ContentService = {
 
-    var contentService = {
+    requestTimeout: 4000,
+    cacheQueueInterval: 10,
+    cacheQueue: [],
+    cachedContent: {},
+    cachedCharacters: {},
+    popularContentCharacters: {},
+    popularContentItems: {},
 
-        requestTimeout: 4000,
-        cacheQueueInterval: 10,
-        cacheQueue: [],
-        cachedContent: {},
-        cachedCharacters: {},
-        popularContentCharacters: {},
-        popularContentItems: {},
+    databaseAuctionItems: [],
 
-        contentEndpoints: {
-            searchCharByName: {
-                method: 'post',
-                url: '',
-                fields: {
-                    type: 'text',
-                    name: 'charname'
-                }
-            },
-            searchChar: {
-                method: 'post',
-                url: '',
-                fields: {
-                    type: 'number',
-                    name: 'charid'
-                }
-            },
-            searchItemByName: {
-                method: 'post',
-                url: '',
-                fields: {
-                    type: 'text',
-                    name: 'itemname'
-                }
-            },
-            searchItem: {
-                method: 'post',
-                url: '',
-                fields: {
-                    type: 'number',
-                    name: 'itemid'
-                }
-            },
-        }
+    /**
+     *
+     */
+    refreshAuctionItems: function () {
+        ContentService.getAuctionItems()
+            .then(function (results) {
+                debug('refreshAuctionItems::completed!');
+                ContentService.databaseAuctionItems = results;
+                setTimeout(function () {
+                    ContentService.refreshAuctionItems();
+                }, 300000);
+            })
+            .catch(function (err) {
+                setTimeout(function () {
+                    ContentService.refreshAuctionItems();
+                }, 300000);
+            });
+    },
 
-    };
-
-    setInterval(function () {
-        contentService.cacheStorage();
-    }, 1000 * contentService.cacheQueueInterval);
+    /**
+     * fetchAuctionItemById
+     * @param itemid number
+     */
+    fetchAuctionItemById: function (itemid) {
+        let auctionItemData = false;
+        ContentService.databaseAuctionItems.forEach(auctionItem => {
+            if (auctionItem.itemid === itemid) {
+                auctionItemData = auctionItem;
+            }
+        });
+        return auctionItemData;
+    },
 
     /**
      * updatePopularCharacter
      * @param charid number
      * @param charname string
      */
-    contentService.updatePopularCharacter = function (charid, charname) {
+    updatePopularCharacter: function (charid, charname) {
         if (!this.popularContentCharacters[charid]) { this.popularContentCharacters[charid] = { counter: 0, charname: charname }; }
         this.popularContentCharacters[charid].counter++;
         this.popularContentCharacters[charid].updated = new Date().getTime();
-    };
+    },
 
     /**
-     *
-     *
-     *
+     * updateCachedCharacters
+     * @param responseObjectItemList array
+     * @returns null
      */
-    contentService.updateCachedCharacters = function (responseObjectItemList) {
+    updateCachedCharacters: function (responseObjectItemList) {
         if (responseObjectItemList.length === 0) { return false; }
         responseObjectItemList.forEach(function (objectItem, index) {
-            contentService.cachedCharacters[objectItem.name] = {
+            ContentService.cachedCharacters[objectItem.name] = {
                 id: objectItem.id,
                 updated: new Date().getTime()
             }
         });
-        contentService.setCache('cachedCharacters', contentService.cachedCharacters);
-    };
+        ContentService.setCache('cachedCharacters', ContentService.cachedCharacters);
+    },
 
     /**
      * popularContentItems
      * @param itemid number
+     * @param itemname string
+     * @returns null
      */
-    contentService.updatePopularItem = function (itemid, itemname) {
+    updatePopularItem: function (itemid, itemname) {
         if (!this.popularContentItems[itemid]) { this.popularContentItems[itemid] = { counter: 0, itemname: itemname }; }
         this.popularContentItems[itemid].counter++;
         this.popularContentItems[itemid].updated = new Date().getTime();
-    };
+    },
 
     /**
-     *
+     * getPopularCharacters
      * @returns {popularContentCharacters}
      */
-    contentService.getPopularCharacters = function () {
+    getPopularCharacters: function () {
         return this.popularContentCharacters;
-    };
+    },
 
     /**
-     *
+     * getPopularItems
      * @returns {popularContentItems}
      */
-    contentService.getPopularItems = function () {
+    getPopularItems: function () {
         return this.popularContentItems;
-    };
+    },
 
     /**
-     *
-     *
+     * getAuctionItems
+     * @returns {promise}
      */
-    contentService.getAuctionItems = function () {
-        return new promise(function (resolve, reject){
+    getAuctionItems: function () {
+        return new promise(function (resolve, reject) {
 
-            dataContent.query('select ib.*, ia.level, ia.ilevel, ia.jobs, ia.slot from item_basic ib left join item_armor ia on ib.itemid = ia.itemid where ib.aH <> 0 and NoSale = 0 order by aH;')
+            dataContent.query('select ib.*, ia.level, ia.ilevel, ia.jobs, ia.slot, (select count(id) from auction_house where sell_date = 0 and itemid = ib.itemid) as sell_count from item_basic ib left join item_armor ia on ib.itemid = ia.itemid where ib.aH <> 0 and NoSale = 0 order by aH;')
                 .then(function (results) {
                     resolve(dataContent.parseDataRows(results));
                 })
-                .catch(function(err){
+                .catch(function (err) {
                     reject(err);
                 })
 
         });
-    }
+    },
 
     /**
      * searchCharByName
      * @param charname string
      */
-    contentService.searchCharByName = function (charname) {
-
-        var options = {
-            method: this.contentEndpoints.searchCharByName.method,
-            url: this.contentEndpoints.searchCharByName.url,
-            time: true,
-            timeout: contentService.requestTimeout,
-            headers:
-                { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { charname: charname }
-        };
-
+    searchCharByName: function (charname) {
         return new promise(function (resolve, reject) {
             var cacheId = md5('searchCharByName' + charname);
-            var cachedObject = contentService.getCache(cacheId);
+            var cachedObject = ContentService.getCache(cacheId);
             if (cachedObject === false) {
-                contentService.setCache(cacheId, [], 3600);
+                ContentService.setCache(cacheId, [], 3600);
                 resolve(postDataReturned);
             } else {
                 resolve(cachedObject);
             }
         });
-
-    };
+    },
 
     /**
      * searchChar
      * @param charid number
      */
-    contentService.searchChar = function (charid) {
-
-        var options = {
-            method: this.contentEndpoints.searchChar.method,
-            url: this.contentEndpoints.searchChar.url,
-            time: true,
-            timeout: contentService.requestTimeout,
-            headers:
-                { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { charid: charid }
-        };
-
+    searchChar: function (charid) {
         return new promise(function (resolve, reject) {
             var cacheId = md5('searchChar' + charid);
-            var cachedObject = contentService.getCache(cacheId);
+            var cachedObject = ContentService.getCache(cacheId);
             var postDataReturned = {
                 sale_list: []
             };
@@ -193,7 +164,7 @@ module.exports = function (contentConfig) {
                         postDataReturned = {
                             sale_list: result
                         };
-                        contentService.setCache(cacheId, postDataReturned, 3600);
+                        ContentService.setCache(cacheId, postDataReturned, 3600);
                         resolve(postDataReturned);
                     })
                     .catch(function (err) {
@@ -201,61 +172,37 @@ module.exports = function (contentConfig) {
                     });
             } else {
                 var postDataReturned = cachedObject;
-                if (postDataReturned && postDataReturned.length > 0) { contentService.updatePopularCharacter(charid, postDataReturned[0].name); }
+                if (postDataReturned && postDataReturned.length > 0) { ContentService.updatePopularCharacter(charid, postDataReturned[0].name); }
                 resolve(cachedObject);
             }
         });
-
-    };
+    },
 
     /**
-     *
+     * searchItemByName
      * @param itemname string
      */
-    contentService.searchItemByName = function (itemname) {
-
-        var options = {
-            method: this.contentEndpoints.searchItemByName.method,
-            url: this.contentEndpoints.searchItemByName.url,
-            time: true,
-            timeout: contentService.requestTimeout,
-            headers:
-                { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { itemname: itemname }
-        };
-
+    searchItemByName: function (itemname) {
         return new promise(function (resolve, reject) {
             var cacheId = md5('searchItemByName' + itemname);
-            var cachedObject = contentService.getCache(cacheId);
+            var cachedObject = ContentService.getCache(cacheId);
             if (cachedObject === false) {
-                contentService.setCache(cacheId, [], 3600);
+                ContentService.setCache(cacheId, [], 3600);
                 resolve(postDataReturned);
             } else {
                 resolve(cachedObject);
             }
         });
-
-    };
+    },
 
     /**
-     *
+     * searchItem
      * @param itemid number
      */
-    contentService.searchItem = function (itemid, stack) {
-
-        var options = {
-            method: this.contentEndpoints.searchItem.method,
-            url: this.contentEndpoints.searchItem.url,
-            time: true,
-            timeout: contentService.requestTimeout,
-            headers:
-                { 'Cache-Control': 'no-cache', 'Content-Type': 'application/x-www-form-urlencoded' },
-            form: { itemid: itemid, stack: stack }
-        };
-
+    searchItem: function (itemid, stack) {
         return new promise(function (resolve, reject) {
             var cacheId = md5('searchItem' + itemid + stack);
-            var cachedObject = contentService.getCache(cacheId);
+            var cachedObject = ContentService.getCache(cacheId);
             var cachedItemData;
             var postDataReturned = {
                 sale_list: []
@@ -300,7 +247,7 @@ module.exports = function (contentConfig) {
                             });
                             postDataReturned['sale_list'].push(saleItem);
                         }
-                        contentService.setCache(cacheId, postDataReturned, 3600);
+                        ContentService.setCache(cacheId, postDataReturned, 3600);
                         resolve(postDataReturned);
                     })
                     .catch(function (err) {
@@ -309,19 +256,18 @@ module.exports = function (contentConfig) {
                     });
 
             } else {
-                // contentService.updatePopularItem(itemid, cachedObject.sale_list[0].item_name);
+                // ContentService.updatePopularItem(itemid, cachedObject.sale_list[0].item_name);
                 resolve(cachedObject);
             }
         });
-
-    };
+    },
 
     /**
      * getCache
      * @param cacheId
      * @returns {(boolean|object)}
      */
-    contentService.getCache = function (cacheId) {
+    getCache: function (cacheId) {
         var cachedObject = this.cachedContent[cacheId];
         if (!cachedObject) {
             cachedObject = { data: false };
@@ -332,7 +278,7 @@ module.exports = function (contentConfig) {
             }
         }
         return cachedObject.data;
-    };
+    },
 
     /**
      * setCache
@@ -341,21 +287,21 @@ module.exports = function (contentConfig) {
      * @param ttl number
      * @returns {boolean}
      */
-    contentService.setCache = function (cacheId, blob, ttl) {
+    setCache: function (cacheId, blob, ttl) {
         this.cacheQueue.push(cacheId);
         this.cachedContent[cacheId] = {
             expires: new Date().getTime() + ((ttl ? ttl : 300) * 1000),
             data: blob
         };
         return true;
-    };
+    },
 
-    contentService.cacheStorage = function () {
-        var cacheId = contentService.cacheQueue.shift(),
+    cacheStorage: function () {
+        var cacheId = ContentService.cacheQueue.shift(),
             cacheObject = {};
 
         if (cacheId) {
-            cacheObject = contentService.getCache(cacheId);
+            cacheObject = ContentService.getCache(cacheId);
             if (cacheObject) {
                 fs.writeFile(__dirname + '/dat/' + cacheId + '.dat', JSON.stringify(cacheObject), 'utf8', function (err) {
                     if (err) {
@@ -366,8 +312,24 @@ module.exports = function (contentConfig) {
                 });
             }
         }
+    }
 
-    };
+};
 
-    return contentService;
+setInterval(function () {
+    ContentService.cacheStorage();
+}, 1000 * ContentService.cacheQueueInterval);
+
+/**
+ * Fetch auction items, sell count. Also starts refresh loop
+ */
+ContentService.refreshAuctionItems();
+
+var exports = module.exports = {
+    getAuctionItems: ContentService.getAuctionItems,
+    fetchAuctionItemById: ContentService.fetchAuctionItemById,
+    searchCharByName: ContentService.searchCharByName,
+    searchChar: ContentService.searchChar,
+    searchItemByName: ContentService.searchItemByName,
+    searchItem: ContentService.searchItem
 };

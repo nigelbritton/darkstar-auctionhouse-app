@@ -8,14 +8,14 @@ var express = require('express'),
     debug = require('debug')('darkstar-auctionhouse-app:api'),
     router = express.Router();
 
-var loadContent = require('../lib/loadContent')();
+var loadContent = require('../lib/loadContent');
 
-router.post('/searchCharByName', function(req, res, next) {
-    loadContent.searchCharByName( req.body.charname )
+router.post('/searchCharByName', function (req, res, next) {
+    loadContent.searchCharByName(req.body.charname)
         .then(function (response) {
             debug(response);
             if (response.length === 1) {
-                loadContent.searchChar( response[0].id )
+                loadContent.searchChar(response[0].id)
                     .then(function (response) {
                         res.send(response);
                     }).catch(function (error) {
@@ -31,8 +31,8 @@ router.post('/searchCharByName', function(req, res, next) {
         });
 });
 
-router.post('/searchChar', function(req, res, next) {
-    loadContent.searchChar( req.body.charid )
+router.post('/searchChar', function (req, res, next) {
+    loadContent.searchChar(req.body.charid)
         .then(function (response) {
             res.send(response);
         }).catch(function (error) {
@@ -41,8 +41,8 @@ router.post('/searchChar', function(req, res, next) {
         });
 });
 
-router.post('/searchItemByName', function(req, res, next) {
-    loadContent.searchItemByName( req.body.itemname )
+router.post('/searchItemByName', function (req, res, next) {
+    loadContent.searchItemByName(req.body.itemname)
         .then(function (response) {
             res.send(response);
         }).catch(function (error) {
@@ -51,8 +51,8 @@ router.post('/searchItemByName', function(req, res, next) {
         });
 });
 
-router.post('/searchItem', function(req, res, next) {
-    loadContent.searchItem( req.body.itemid, req.body.stack )
+router.post('/searchItem', function (req, res, next) {
+    loadContent.searchItem(req.body.itemid, req.body.stack)
         .then(function (response) {
             res.send(response);
         }).catch(function (error) {
@@ -61,11 +61,11 @@ router.post('/searchItem', function(req, res, next) {
         });
 });
 
-router.get('/getPopularCharacters', function(req, res, next) {
+router.get('/getPopularCharacters', function (req, res, next) {
     res.send(loadContent.getPopularCharacters());
 });
 
-router.get('/getPopularItems', function(req, res, next) {
+router.get('/getPopularItems', function (req, res, next) {
     res.send(loadContent.getPopularItems());
 });
 

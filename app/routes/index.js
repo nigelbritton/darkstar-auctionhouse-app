@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var debug = require('debug')('darkstar-auctionhouse-app:routing');
-var loadContent = require('../lib/loadContent')();
+var loadContent = require('../lib/loadContent');
 
 var version = require('../../package.json').version;
 var structureCategories = require('../public/json/structure.json');
@@ -46,7 +46,7 @@ var getItemById = function (results, id) {
 
 var structureCategoriesCounter = {};
 
-structureItems.forEach(function(result){
+structureItems.forEach(function (result) {
     if (result.hasOwnProperty('aH')) {
         if (!structureCategoriesCounter[result['aH']]) {
             structureCategoriesCounter[result['aH']] = 0;
@@ -56,11 +56,11 @@ structureItems.forEach(function(result){
 });
 
 /* GET home page. */
-router.get('/', function(req, res, next) {
+router.get('/', function (req, res, next) {
     res.render('index', { title: 'Home', version: version });
 });
 
-router.get('/browse', function(req, res, next) {
+router.get('/browse', function (req, res, next) {
     var structureCategoriesHTML = '';
 
     structureCategories.forEach(function (result) {
@@ -114,7 +114,7 @@ router.get('/browse', function(req, res, next) {
     res.render('browse', { title: 'Browse', version: version, structureCategoriesHTML: structureCategoriesHTML });
 });
 
-router.get('/browse/:groupId', function(req, res, next) {
+router.get('/browse/:groupId', function (req, res, next) {
     var structureCategoriesHTML = '',
         categoryGroupHTML = '';
     var structureCategory = {
@@ -134,11 +134,19 @@ router.get('/browse/:groupId', function(req, res, next) {
         structureCategoriesHTML = structureCategoriesHTML.replace('{{title}}', structureCategory.title);
         structureCategoriesHTML = structureCategoriesHTML.replace('{{groupId}}', structureCategory.id);
 
-        structureItems.forEach(function(result) {
+        structureItems.forEach(function (result) {
+
+            let auctionItemData = loadContent.fetchAuctionItemById(result.itemid);
+
             if (result.hasOwnProperty('aH') && parseInt(result['aH']) === structureCategory.id) {
-                var localName = result.name.replace(new RegExp('_', 'g'), ' ').toLowerCase().replace(/\b[a-z](?=[a-z]{2})/g, function(letter) {
-                    return letter.toUpperCase(); } );
-                categoryGroupHTML += '<a data-href="/browse/item/{{id}}" class="list-group-item list-group-item-action list-group-item-warning d-flex justify-content-between align-items-center"><strong>{{title}}</strong></a>'.replace('{{id}}', result.itemid).replace('{{title}}', localName);
+                var localName = result.name.replace(new RegExp('_', 'g'), ' ').toLowerCase().replace(/\b[a-z](?=[a-z]{2})/g, function (letter) {
+                    return letter.toUpperCase();
+                });
+
+                if (auctionItemData === false) {
+                    auctionItemData = { level: 'N/A', sell_count: 0 };
+                }
+                categoryGroupHTML += '<a data-href="/browse/item/{{id}}" class="list-group-item list-group-item-action list-group-item-warning d-flex justify-content-between align-items-center"><strong>{{title}} <small style="display:block;">Level: {{level}}</small></strong><span class="badge badge-dark badge-pill">{{sell_count}}</span></a>'.replace('{{id}}', result.itemid).replace('{{title}}', localName).replace('{{sell_count}}', auctionItemData['sell_count']).replace('{{level}}', auctionItemData['level']);
             }
         });
         structureCategoriesHTML = structureCategoriesHTML.replace('{{category_items}}', categoryGroupHTML);
@@ -148,7 +156,7 @@ router.get('/browse/:groupId', function(req, res, next) {
     res.render('browse', { title: 'Browse', version: version, structureCategoriesHTML: structureCategoriesHTML });
 });
 
-router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
+router.get('/browse/item/:itemId/:stack?', function (req, res, next) {
     var structureCategoriesHTML = '',
         categoryGroupHTML = '';
     var auctionStockFrequency = 'Slow',
@@ -168,8 +176,9 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
 
     if (structureItem) {
         structureCategory = getCategoryById(structureCategories, structureItem.aH);
-        structureItem.name = structureItem.name.replace(new RegExp('_', 'g'), ' ').toLowerCase().replace(/\b[a-z](?=[a-z]{2})/g, function(letter) {
-            return letter.toUpperCase(); } );
+        structureItem.name = structureItem.name.replace(new RegExp('_', 'g'), ' ').toLowerCase().replace(/\b[a-z](?=[a-z]{2})/g, function (letter) {
+            return letter.toUpperCase();
+        });
 
         structureCategoriesHTML += '<div class="list-group mb-3"><a data-href="/browse/{{groupId}}" data-group-id="{{groupId}}" class="list-group-item list-group-item-action list-group-item-success d-flex justify-content-between align-items-center"><strong>{{title}}</strong><span class="badge badge-dark badge-pill">{{item_counter}}</span></a>{{category_items}}</div>';
         structureCategoriesHTML = structureCategoriesHTML.replace('{{groupId}}', structureCategory.id);
@@ -180,7 +189,7 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
 
         structureCategoriesHTML = structureCategoriesHTML.replace('{{category_items}}', categoryGroupHTML);
 
-        loadContent.searchItem( structureItemSearch.itemid, structureItemSearch.stack )
+        loadContent.searchItem(structureItemSearch.itemid, structureItemSearch.stack)
             .then(function (response) {
 
                 debug(response);
@@ -202,7 +211,7 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
                         categoryGroupHTML += auctionItemSold;
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_meta}}', 'g'), auctionItemMeta);
 
-                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_icon_url}}', 'g'), '/icons/' + auctionItem.itemid +'.png');
+                        categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_icon_url}}', 'g'), '/icons/' + auctionItem.itemid + '.png');
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{itemid}}', 'g'), auctionItem.itemid);
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_name}}', 'g'), auctionItem.item_name);
                         categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_multiplier}}', 'g'), (auctionItem.stack === '1' ? ' x' + auctionItem.stackSize : ''));
@@ -239,7 +248,7 @@ router.get('/browse/item/:itemId/:stack?', function(req, res, next) {
 
 });
 
-router.get('/browse/user/:userId', function(req, res, next) {
+router.get('/browse/user/:userId', function (req, res, next) {
     var structureCategoriesHTML = '',
         categoryGroupHTML = '';
     var auctionStockFrequency = 'Slow';
@@ -272,7 +281,7 @@ router.get('/browse/user/:userId', function(req, res, next) {
                     categoryGroupHTML += auctionItemSold;
                     categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_meta}}', 'g'), auctionItemMeta);
 
-                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_icon_url}}', 'g'), '/icons/' + auctionItem.itemid +'.png');
+                    categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_icon_url}}', 'g'), '/icons/' + auctionItem.itemid + '.png');
                     categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{itemid}}', 'g'), auctionItem.itemid);
                     categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_name}}', 'g'), auctionItem.item_name);
                     categoryGroupHTML = categoryGroupHTML.replace(new RegExp('{{item_multiplier}}', 'g'), (auctionItem.stack === '1' ? ' x' + auctionItem.stackSize : ''));
@@ -303,11 +312,11 @@ router.get('/browse/user/:userId', function(req, res, next) {
 
 });
 
-router.get('/search/', function(req, res, next) {
+router.get('/search/', function (req, res, next) {
     res.render('search', { title: 'Search', version: version });
 });
 
-router.get('/profile/', function(req, res, next) {
+router.get('/profile/', function (req, res, next) {
     res.render('profile', { title: 'Profile', version: version });
 });
 
